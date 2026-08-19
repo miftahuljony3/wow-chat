@@ -501,6 +501,7 @@ export default function AutomationPage() {
                         setConfigs((prev) => prev.filter((c) => c.id !== cfg.id));
                         showToast("Config deleted.");
                       }}
+                      onGoToMedia={() => setTab("media")}
                     />
                   ))}
                 </div>
@@ -760,7 +761,7 @@ function Toggle({
 
 function ConfigCard({
   cfg, expanded, saving, triggering, unusedMediaCount,
-  onToggle, onEnableToggle, onTrigger, onUpdate, onDelete,
+  onToggle, onEnableToggle, onTrigger, onUpdate, onDelete, onGoToMedia,
 }: {
   cfg: AutoPostConfig;
   expanded: boolean;
@@ -772,6 +773,7 @@ function ConfigCard({
   onTrigger: () => void;
   onUpdate: (field: string, value: unknown) => void;
   onDelete: () => void;
+  onGoToMedia: () => void;
 }) {
   const [local, setLocal] = useState({
     post_time: cfg.post_time,
@@ -863,6 +865,25 @@ function ConfigCard({
           </button>
         </div>
       </div>
+
+      {/* No-media warning banner */}
+      {unusedMediaCount === 0 && (
+        <div className="mx-5 mb-4 -mt-1 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+          <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-xs text-amber-800 leading-relaxed">
+            <strong>Nothing will post — the Media Library is empty.</strong> Auto-Post picks an
+            unused image/video, writes an AI caption, and publishes it. Upload at least one file in
+            the{" "}
+            <button
+              onClick={onGoToMedia}
+              className="underline font-semibold hover:text-amber-900"
+            >
+              Media Library
+            </button>{" "}
+            tab first.
+          </div>
+        </div>
+      )}
 
       {/* Expanded settings */}
       {expanded && (

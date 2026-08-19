@@ -68,6 +68,17 @@ def resolve_page_access_token(token: str, page_id: str) -> tuple[str, dict]:
     # 2. /me/accounts fallback.
     try:
         status, data = _get("me/accounts", token, fields="name,id,access_token,tasks", limit=200)
+
+        # Expired / invalid token (code 190) — report it precisely.
+        err = data.get("error") if isinstance(data, dict) else None
+        if err and err.get("code") == 190:
+            info["note"] = (
+                f"⚠ This access token is expired or invalid ({err.get('message', '')}). "
+                f"Generate a fresh long-lived Page access token (with pages_manage_posts "
+                f"+ pages_read_engagement) and paste it here."
+            )
+            return token, info
+
         pages = data.get("data", []) if status == 200 else []
         info["managed_pages"] = [{"id": p.get("id"), "name": p.get("name")} for p in pages]
 
@@ -90,12 +101,19 @@ def resolve_page_access_token(token: str, page_id: str) -> tuple[str, dict]:
             )
         else:
             _, me = _get("me", token, fields="id,name")
-            info["note"] = (
-                f"⚠ Couldn’t find a Page token for {page_id}. This looks like a "
-                f"{me.get('name', 'User')} ({me.get('id', '?')}) token with no managed "
-                f"pages — generate a Page token with pages_manage_posts + "
-                f"pages_read_engagement."
-            )
+            me_err = me.get("error") if isinstance(me, dict) else None
+            if me_err and me_err.get("code") == 190:
+                info["note"] = (
+                    f"⚠ This access token is expired or invalid ({me_err.get('message', '')}). "
+                    f"Paste a fresh long-lived Page access token."
+                )
+            else:
+                info["note"] = (
+                    f"⚠ Couldn’t find a Page token for {page_id}. This looks like a "
+                    f"{me.get('name', 'User')} ({me.get('id', '?')}) token with no managed "
+                    f"pages — generate a Page token with pages_manage_posts + "
+                    f"pages_read_engagement."
+                )
     except Exception as exc:
         logger.warning("/me/accounts token resolution failed: %s", exc)
         info["note"] = f"⚠ Couldn’t verify this token with Facebook right now ({exc})."

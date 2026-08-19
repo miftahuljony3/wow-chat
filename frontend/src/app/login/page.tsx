@@ -20,6 +20,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await authApi.login(username, password);
+      // Store tokens first so the axios interceptor can attach them to /me/
+      localStorage.setItem("access_token", res.data.access);
+      localStorage.setItem("refresh_token", res.data.refresh);
       const meRes = await authApi.me();
       setAuth(meRes.data, res.data.access, res.data.refresh);
       router.push("/dashboard");

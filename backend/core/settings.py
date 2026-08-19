@@ -220,8 +220,8 @@ WHATSAPP_VERIFY_TOKEN = env("WHATSAPP_VERIFY_TOKEN", default="")
 WHATSAPP_APP_SECRET = env("WHATSAPP_APP_SECRET", default="")
 
 # ── AI / LLM ─────────────────────────────────────────────────────────────────
-OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
-OPENAI_MODEL = env("OPENAI_MODEL", default="gpt-4o-mini")
+GROQ_API_KEY = env("GROQ_API_KEY", default="")
+GROQ_MODEL = env("GROQ_MODEL", default="llama-3.3-70b-versatile")
 
 # ── App URLs ──────────────────────────────────────────────────────────────────
 SITE_BASE_URL = env("SITE_BASE_URL", default="http://localhost:8000")

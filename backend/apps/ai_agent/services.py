@@ -10,7 +10,7 @@ from typing import Optional
 
 import httpx
 from django.conf import settings
-from openai import OpenAI
+from groq import Groq
 
 logger = logging.getLogger(__name__)
 
@@ -61,11 +61,11 @@ class WhatsAppService:
 
 
 class LLMService:
-    """Wrapper around OpenAI chat completions."""
+    """Wrapper around Groq chat completions (llama-3.3-70b-versatile by default)."""
 
     def __init__(self, model: Optional[str] = None):
-        self._client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        self._model = model or settings.OPENAI_MODEL
+        self._client = Groq(api_key=settings.GROQ_API_KEY)
+        self._model = model or settings.GROQ_MODEL
 
     def generate_response(
         self,
@@ -92,5 +92,5 @@ class LLMService:
             )
             return response.choices[0].message.content.strip()
         except Exception as exc:
-            logger.exception("LLM generation failed: %s", exc)
+            logger.exception("Groq LLM generation failed: %s", exc)
             return "I'm sorry, I'm having trouble responding right now. Please try again shortly."

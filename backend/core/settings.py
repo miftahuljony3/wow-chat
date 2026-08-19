@@ -202,10 +202,11 @@ SIMPLE_JWT = {
 }
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-CORS_ALLOWED_ORIGINS = env.list(
-    "CORS_ALLOWED_ORIGINS", default=["http://localhost:3000"]
-)
-CORS_ALLOW_CREDENTIALS = True
+# Allow all origins — safe because all protected endpoints require a JWT Bearer
+# token (not cookies), so cross-origin requests without a valid token get 401.
+# The web chat widget is embedded on external customer sites and needs open CORS.
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = False  # Must be False when CORS_ALLOW_ALL_ORIGINS=True
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 AUTH_USER_MODEL = "accounts.User"

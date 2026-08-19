@@ -457,7 +457,7 @@ export default function AutomationPage() {
                     <EmptyState
                       icon="⚡"
                       title="No auto-post configs yet"
-                      subtitle="Connect a Facebook or Instagram page first, then create a config to start daily posting."
+                      subtitle="Auto-Post requires a Facebook Page or Instagram account connected via Settings → Channels. Once connected, create a config here to start daily AI-generated posting."
                       action={
                         availableIntegrations.length > 0 ? (
                           <button
@@ -467,9 +467,16 @@ export default function AutomationPage() {
                             <Plus size={14} /> Create First Config
                           </button>
                         ) : (
-                          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2">
-                            Add a Facebook Messenger or Instagram integration in Settings first.
-                          </p>
+                          <div className="flex flex-col items-center gap-2">
+                            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 max-w-sm text-center leading-relaxed">
+                              📘 Go to <strong>Settings → Channels</strong> and add a{" "}
+                              <strong>Facebook Messenger</strong> or <strong>Instagram</strong>{" "}
+                              integration to unlock auto-posting.
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              Web Chat widget is always-on and doesn&apos;t need a config here.
+                            </p>
+                          </div>
                         )
                       }
                     />

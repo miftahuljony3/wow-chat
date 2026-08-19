@@ -31,7 +31,13 @@ api.interceptors.response.use(
         } catch {
           localStorage.clear();
           window.location.href = "/login";
+          return Promise.reject(error);
         }
+      } else {
+        // No refresh token — session is fully expired
+        localStorage.clear();
+        window.location.href = "/login";
+        return Promise.reject(error);
       }
     }
     return Promise.reject(error);

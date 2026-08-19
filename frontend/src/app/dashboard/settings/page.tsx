@@ -213,7 +213,12 @@ export default function SettingsPage() {
       setForm(makeDefaultForm(selectedPlatform));
       setMsg({ text: "Integration saved successfully.", ok: true });
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string; non_field_errors?: string[] } } };
+      const err = e as { response?: { status?: number; data?: { detail?: string; non_field_errors?: string[] } } };
+      if (err?.response?.status === 401) {
+        setMsg({ text: "Session expired — please log in again.", ok: false });
+        setTimeout(() => { window.location.href = "/login"; }, 1800);
+        return;
+      }
       const detail =
         err?.response?.data?.detail ||
         err?.response?.data?.non_field_errors?.[0] ||

@@ -1,0 +1,47 @@
+# Django core
+Django==5.0.6
+djangorestframework==3.15.2
+django-cors-headers==4.4.0
+djangorestframework-simplejwt==5.3.1
+django-environ==0.11.2
+
+# Channels (WebSocket)
+channels==4.1.0
+channels-redis==4.2.0
+daphne==4.1.2
+
+# Celery
+celery==5.4.0
+django-celery-beat==2.6.0
+django-celery-results==2.5.1
+redis==5.0.8
+
+# PostgreSQL
+psycopg2-binary==2.9.9
+
+# MongoDB
+pymongo==4.8.0
+motor==3.5.0
+
+# AI / LLM
+openai==1.40.0
+langchain==0.2.12
+langchain-openai==0.1.20
+langchain-community==0.2.11
+tiktoken==0.7.0
+
+# HTTP & Webhooks
+httpx==0.27.0
+requests==2.32.3
+cryptography==43.0.0
+
+# Utilities
+pillow==10.4.0
+python-decouple==3.8
+django-filter==24.3
+django-extensions==3.2.3
+
+# Dev / Testing
+pytest==8.3.2
+pytest-django==4.8.0
+factory-boy==3.3.1

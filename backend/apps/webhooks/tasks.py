@@ -344,6 +344,32 @@ def _extract_telegram_content(msg: dict) -> str:
     return "[Unsupported message type]"
 
 
+# ── Facebook Feed (comments) ──────────────────────────────────────────────────
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=5,
+    queue="webhooks",
+    name="webhooks.process_feed_event",
+)
+def process_feed_event(self, value: dict, page_id: str):
+    """
+    Route a Facebook feed-change event (comment add) to the
+    automation comment moderation task.
+    """
+    try:
+        from apps.automation.tasks import moderate_comment_task
+        moderate_comment_task.apply_async(
+            args=[value, page_id],
+            queue="ai_responses",
+            countdown=0,
+        )
+    except Exception as exc:
+        logger.exception("Error routing feed event to moderation: %s", exc)
+        raise self.retry(exc=exc)
+
+
 # ── Discord ───────────────────────────────────────────────────────────────────
 
 @shared_task(

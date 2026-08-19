@@ -21,6 +21,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .tasks import (
     process_whatsapp_payload,
     process_messenger_payload,
+    process_feed_event,
     process_telegram_payload,
     process_discord_payload,
 )
@@ -110,7 +111,27 @@ class MessengerWebhookView(View):
         except json.JSONDecodeError:
             return HttpResponse(status=400)
 
-        process_messenger_payload.apply_async(args=[payload], queue="webhooks", countdown=0)
+        for entry in payload.get("entry", []):
+            page_id = entry.get("id", "")
+
+            # ── Messenger messages ──────────────────────────────────────────
+            if entry.get("messaging"):
+                process_messenger_payload.apply_async(
+                    args=[{"entry": [entry]}], queue="webhooks", countdown=0
+                )
+
+            # ── Page feed: posts, comments, reactions ───────────────────────
+            for change in entry.get("changes", []):
+                if change.get("field") == "feed":
+                    value = change.get("value", {})
+                    item = value.get("item", "")
+                    verb = value.get("verb", "")
+                    # Only process new comments (not edits, likes, shares)
+                    if item == "comment" and verb == "add":
+                        process_feed_event.apply_async(
+                            args=[value, page_id], queue="webhooks", countdown=0
+                        )
+
         return HttpResponse(status=200)
 
 

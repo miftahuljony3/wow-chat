@@ -42,6 +42,7 @@ LOCAL_APPS = [
     "apps.inbox",
     "apps.webhooks",
     "apps.ai_agent",
+    "apps.automation",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -148,6 +149,19 @@ CELERY_TASK_QUEUES_DEFAULT = "default"
 CELERY_TASK_ROUTES = {
     "apps.webhooks.tasks.*": {"queue": "webhooks"},
     "apps.ai_agent.tasks.*": {"queue": "ai_responses"},
+    "automation.check_and_post": {"queue": "default"},
+    "automation.execute_auto_post": {"queue": "default"},
+    "automation.moderate_comment_task": {"queue": "ai_responses"},
+}
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    # Check every 5 minutes which auto-post configs are due to fire
+    "automation-check-and-post": {
+        "task": "automation.check_and_post",
+        "schedule": crontab(minute="*/5"),
+    },
 }
 
 # ── Django REST Framework ─────────────────────────────────────────────────────

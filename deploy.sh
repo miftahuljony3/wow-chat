@@ -10,17 +10,19 @@ echo "=== [Wow Chat Deploy] $(date) ==="
 
 cd "$DEPLOY_DIR"
 
-# Backup DB before any changes
+# Backup DB if postgres container is already running
 BACKUP_DIR="$DEPLOY_DIR/backups"
 mkdir -p "$BACKUP_DIR"
-docker exec wowchat_postgres pg_dump -U "${POSTGRES_USER:-wowchat}" "${POSTGRES_DB:-wowchat}" \
-  | gzip > "$BACKUP_DIR/pre_deploy_$(date +%Y%m%d_%H%M%S).sql.gz" 2>/dev/null || true
-# Keep last 10 backups
-ls -t "$BACKUP_DIR"/*.sql.gz 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null || true
+if docker inspect wowchat_postgres &>/dev/null; then
+  docker exec wowchat_postgres pg_dump -U "${POSTGRES_USER:-wowchat}" "${POSTGRES_DB:-wowchat}" \
+    | gzip > "$BACKUP_DIR/pre_deploy_$(date +%Y%m%d_%H%M%S).sql.gz" 2>/dev/null || true
+  ls -t "$BACKUP_DIR"/*.sql.gz 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null || true
+fi
 
 echo ">>> Pulling latest code..."
 git fetch origin
-git reset --hard origin/main
+BRANCH=$(git remote show origin | grep 'HEAD branch' | awk '{print $NF}')
+git reset --hard "origin/${BRANCH}"
 
 echo ">>> Building images..."
 $COMPOSE build --no-cache backend frontend

@@ -1,0 +1,40 @@
+name: Deploy Wow Chat → VPS-2 (wow.gpayauto.org)
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - "**/*.md"
+      - ".gitignore"
+
+jobs:
+  deploy:
+    name: SSH Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS2_HOST }}
+          username: ${{ secrets.VPS2_USER }}
+          key: ${{ secrets.VPS2_SSH_KEY }}
+          port: 22
+          command_timeout: "15m"
+          script: |
+            bash /opt/wow-chat/deploy.sh
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS2_HOST }}
+          username: ${{ secrets.VPS2_USER }}
+          key: ${{ secrets.VPS2_SSH_KEY }}
+          script: |
+            echo "--- Container health ---"
+            docker compose -f /opt/wow-chat/docker-compose.prod.yml ps
+            echo "--- HTTP check ---"
+            curl -sf http://127.0.0.1:7000/health && echo "nginx OK" || echo "nginx NOT responding"
+            echo "--- Git HEAD ---"
+            cd /opt/wow-chat && git log --oneline -1

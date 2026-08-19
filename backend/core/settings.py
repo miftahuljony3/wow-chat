@@ -219,6 +219,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 WHATSAPP_VERIFY_TOKEN = env("WHATSAPP_VERIFY_TOKEN", default="")
 WHATSAPP_APP_SECRET = env("WHATSAPP_APP_SECRET", default="")
 
+# ── Discord ───────────────────────────────────────────────────────────────────
+# Application Public Key — from Discord Developer Portal → General Information
+# Used to verify Ed25519 interaction signatures.
+DISCORD_PUBLIC_KEY = env("DISCORD_PUBLIC_KEY", default="")
+# Application ID — needed for responding to interactions via REST
+DISCORD_APPLICATION_ID = env("DISCORD_APPLICATION_ID", default="")
+
 # ── AI / LLM ─────────────────────────────────────────────────────────────────
 GROQ_API_KEY = env("GROQ_API_KEY", default="")
 GROQ_MODEL = env("GROQ_MODEL", default="llama-3.3-70b-versatile")

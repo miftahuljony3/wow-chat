@@ -5,6 +5,8 @@ Facebook Page API service — posting, comment deletion, comment replies.
 import logging
 import httpx
 
+from core.net_retry import request_with_retries
+
 logger = logging.getLogger(__name__)
 
 GRAPH_BASE = "https://graph.facebook.com/v19.0"
@@ -72,11 +74,11 @@ class FacebookPageService:
         Delete a comment from a page post.
         Returns True on success.
         """
-        with httpx.Client(timeout=10.0) as client:
-            resp = client.delete(
-                f"{GRAPH_BASE}/{comment_id}",
-                params={"access_token": self.token},
-            )
+        resp = request_with_retries(
+            "DELETE",
+            f"{GRAPH_BASE}/{comment_id}",
+            params={"access_token": self.token},
+        )
         if resp.status_code == 200:
             logger.info("Deleted comment %s", comment_id)
             return True
@@ -100,25 +102,26 @@ class FacebookPageService:
 
     def get_comment(self, comment_id: str) -> dict:
         """Fetch comment details (message, from, etc.)."""
-        with httpx.Client(timeout=10.0) as client:
-            resp = client.get(
-                f"{GRAPH_BASE}/{comment_id}",
-                params={
-                    "fields": "message,from,created_time,can_remove",
-                    "access_token": self.token,
-                },
-            )
-            resp.raise_for_status()
-            return resp.json()
+        resp = request_with_retries(
+            "GET",
+            f"{GRAPH_BASE}/{comment_id}",
+            params={
+                "fields": "message,from,created_time,can_remove",
+                "access_token": self.token,
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _post(self, path: str, data: dict) -> dict:
-        with httpx.Client(timeout=15.0) as client:
-            resp = client.post(f"{GRAPH_BASE}{path}", data=data)
-            if not resp.is_success:
-                logger.error(
-                    "Graph API POST %s failed: %s %s", path, resp.status_code, resp.text
-                )
-                resp.raise_for_status()
-            return resp.json()
+        # Retries connection-level failures (this VPS has flaky routing to
+        # Facebook); does not retry HTTP errors like bad token / permission.
+        resp = request_with_retries("POST", f"{GRAPH_BASE}{path}", data=data)
+        if not resp.is_success:
+            logger.error(
+                "Graph API POST %s failed: %s %s", path, resp.status_code, resp.text
+            )
+            resp.raise_for_status()
+        return resp.json()

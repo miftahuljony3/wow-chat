@@ -14,6 +14,8 @@ import httpx
 from django.conf import settings
 from groq import Groq
 
+from core.net_retry import request_with_retries
+
 logger = logging.getLogger(__name__)
 
 WHATSAPP_API_VERSION = "v19.0"
@@ -55,10 +57,12 @@ class WhatsAppService:
         return self._post(payload)
 
     def _post(self, payload: dict) -> dict:
-        with httpx.Client(timeout=10.0) as client:
-            resp = client.post(self._base, json=payload, headers=self._headers)
-            resp.raise_for_status()
-            return resp.json()
+        # Retries connection-level failures (flaky VPS routing to Facebook).
+        resp = request_with_retries(
+            "POST", self._base, json=payload, headers=self._headers
+        )
+        resp.raise_for_status()
+        return resp.json()
 
 
 class TelegramService:

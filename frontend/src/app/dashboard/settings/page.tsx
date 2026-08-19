@@ -421,23 +421,57 @@ export default function SettingsPage() {
                               <p>Guild: {intg.discord_guild_id}</p>
                             )}
                             {intg.web_chat_widget_key && (
-                              <div className="flex items-center gap-2">
-                                <span>Widget Key:</span>
-                                <code className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">
-                                  {intg.web_chat_widget_key}
-                                </code>
-                                <button
-                                  onClick={() =>
-                                    handleCopy(intg.web_chat_widget_key, `wk-${intg.id}`)
-                                  }
-                                  className="hover:text-foreground"
-                                >
-                                  {copied === `wk-${intg.id}` ? (
-                                    <Check size={11} className="text-green-600" />
-                                  ) : (
-                                    <Copy size={11} />
-                                  )}
-                                </button>
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <span>Widget Key:</span>
+                                  <code className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">
+                                    {intg.web_chat_widget_key}
+                                  </code>
+                                  <button
+                                    onClick={() =>
+                                      handleCopy(intg.web_chat_widget_key, `wk-${intg.id}`)
+                                    }
+                                    className="hover:text-foreground"
+                                  >
+                                    {copied === `wk-${intg.id}` ? (
+                                      <Check size={11} className="text-green-600" />
+                                    ) : (
+                                      <Copy size={11} />
+                                    )}
+                                  </button>
+                                </div>
+                                <div className="mt-2">
+                                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                                    Embed Code
+                                  </p>
+                                  <div className="relative group">
+                                    <pre className="bg-[#1e1e2e] text-[#cdd6f4] text-[10px] rounded-lg px-3 py-2.5 overflow-x-auto leading-relaxed whitespace-pre-wrap break-all font-mono">
+{`<script
+  src="https://wow.gpayauto.org/webchat/widget.js"
+  data-widget-key="${intg.web_chat_widget_key}"
+  data-bot-name="${intg.display_name || "AI Assistant"}"
+></script>`}
+                                    </pre>
+                                    <button
+                                      onClick={() =>
+                                        handleCopy(
+                                          `<script\n  src="https://wow.gpayauto.org/webchat/widget.js"\n  data-widget-key="${intg.web_chat_widget_key}"\n  data-bot-name="${intg.display_name || "AI Assistant"}"\n></script>`,
+                                          `embed-${intg.id}`
+                                        )
+                                      }
+                                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 text-white rounded p-1"
+                                    >
+                                      {copied === `embed-${intg.id}` ? (
+                                        <Check size={11} className="text-green-400" />
+                                      ) : (
+                                        <Copy size={11} />
+                                      )}
+                                    </button>
+                                  </div>
+                                  <p className="text-[10px] text-muted-foreground mt-1">
+                                    Paste this before <code className="font-mono">&lt;/body&gt;</code> on any page.
+                                  </p>
+                                </div>
                               </div>
                             )}
                             <p>

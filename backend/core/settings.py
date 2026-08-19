@@ -43,6 +43,7 @@ LOCAL_APPS = [
     "apps.webhooks",
     "apps.ai_agent",
     "apps.automation",
+    "apps.webchat",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -152,6 +153,7 @@ CELERY_TASK_ROUTES = {
     "automation.check_and_post": {"queue": "default"},
     "automation.execute_auto_post": {"queue": "default"},
     "automation.moderate_comment_task": {"queue": "ai_responses"},
+    "webchat.process_webchat_message": {"queue": "webhooks"},
 }
 
 from celery.schedules import crontab

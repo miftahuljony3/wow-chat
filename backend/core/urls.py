@@ -12,4 +12,6 @@ urlpatterns = [
     path("api/v1/automation/", include("apps.automation.urls")),
     # Webhook endpoints — no auth, signed by Meta
     path("webhooks/", include("apps.webhooks.urls")),
+    # Web chat widget — public session init
+    path("api/v1/webchat/", include("apps.webchat.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

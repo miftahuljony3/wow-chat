@@ -155,16 +155,30 @@ def _send_and_persist(
 ):
     """Send outbound message via the correct platform API and save to MongoDB."""
     platform_msg_id = ""
-    svc = _get_platform_service(integration, platform)
 
-    if svc:
+    if platform == "web_chat":
+        # Deliver directly to the visitor's WebSocket via channel layer
+        session_id = conversation["contact_id"].removeprefix("webchat_")
         try:
-            resp = svc.send_text(to=to, body=content)
-            platform_msg_id = _extract_platform_msg_id(resp, platform)
+            async_to_sync(channel_layer.group_send)(
+                f"webchat_{session_id}",
+                {
+                    "type": "chat_message",
+                    "data": {"type": "message", "direction": "outbound", "content": content, "sender": "bot"},
+                },
+            )
         except Exception as exc:
-            logger.error("Failed to send %s message to %s: %s", platform, to, exc)
+            logger.error("WebChat push failed for session %s: %s", session_id, exc)
     else:
-        logger.warning("No outbound service configured for platform=%s", platform)
+        svc = _get_platform_service(integration, platform)
+        if svc:
+            try:
+                resp = svc.send_text(to=to, body=content)
+                platform_msg_id = _extract_platform_msg_id(resp, platform)
+            except Exception as exc:
+                logger.error("Failed to send %s message to %s: %s", platform, to, exc)
+        else:
+            logger.warning("No outbound service configured for platform=%s", platform)
 
     message = build_message(
         conversation_id=conversation["_id"],

@@ -114,4 +114,13 @@ export const automationApi = {
     api.post(`/api/v1/automation/media/${id}/mark_unused/`),
   bulkMarkUnused: () =>
     api.post("/api/v1/automation/media/bulk_mark_unused/"),
+  // Keyword auto-reply rules
+  listRules: (configId: string) =>
+    api.get("/api/v1/automation/reply-rules/", { params: { config: configId } }),
+  createRule: (data: Record<string, unknown>) =>
+    api.post("/api/v1/automation/reply-rules/", data),
+  updateRule: (id: string, data: Record<string, unknown>) =>
+    api.patch(`/api/v1/automation/reply-rules/${id}/`, data),
+  deleteRule: (id: string) =>
+    api.delete(`/api/v1/automation/reply-rules/${id}/`),
 };

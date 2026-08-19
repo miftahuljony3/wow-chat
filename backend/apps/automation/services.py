@@ -133,6 +133,18 @@ class FacebookPageService:
         logger.info("Replied to comment %s", comment_id)
         return resp
 
+    def like_comment(self, comment_id: str) -> bool:
+        """Like a comment (engagement boost on valid comments). Best-effort."""
+        try:
+            resp = request_with_retries(
+                "POST", f"{GRAPH_BASE}/{comment_id}/likes",
+                data={"access_token": self.token},
+            )
+            return resp.is_success
+        except Exception as exc:
+            logger.warning("Failed to like comment %s: %s", comment_id, exc)
+            return False
+
     def get_comment(self, comment_id: str) -> dict:
         """Fetch comment details (message, from, etc.)."""
         resp = request_with_retries(

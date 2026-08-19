@@ -2,12 +2,19 @@ from rest_framework import viewsets, permissions, parsers, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import AutoPostConfig, CloudMediaManager, CommentModerationLog, DailyPostLog
+from .models import (
+    AutoPostConfig,
+    CloudMediaManager,
+    CommentModerationLog,
+    DailyPostLog,
+    CommentAutoReplyRule,
+)
 from .serializers import (
     AutoPostConfigSerializer,
     CloudMediaSerializer,
     CommentModerationLogSerializer,
     DailyPostLogSerializer,
+    CommentAutoReplyRuleSerializer,
 )
 
 
@@ -44,6 +51,21 @@ class AutoPostConfigViewSet(viewsets.ModelViewSet):
             integration=config.integration
         )[:50]
         return Response(CommentModerationLogSerializer(logs, many=True).data)
+
+
+class CommentAutoReplyRuleViewSet(viewsets.ModelViewSet):
+    """Keyword canned-reply rules, scoped to the user's workspace configs."""
+    serializer_class = CommentAutoReplyRuleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = CommentAutoReplyRule.objects.filter(
+            config__workspace=self.request.user.workspace
+        ).select_related("config")
+        config_id = self.request.query_params.get("config")
+        if config_id:
+            qs = qs.filter(config_id=config_id)
+        return qs
 
 
 class CloudMediaViewSet(viewsets.ModelViewSet):

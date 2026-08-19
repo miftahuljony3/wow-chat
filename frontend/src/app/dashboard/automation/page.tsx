@@ -25,7 +25,27 @@ interface AutoPostConfig {
   spam_deletion_enabled: boolean;
   auto_reply_enabled: boolean;
   moderation_prompt: string;
+  reply_persona: string;
+  business_context: string;
+  reply_language: string;
+  like_valid_comments: boolean;
+  reply_only_to_questions: boolean;
+  total_replies_sent: number;
+  reply_rules: ReplyRule[];
   media_unused_count: number;
+}
+
+interface ReplyRule {
+  id: string;
+  config: string;
+  name: string;
+  keywords: string;
+  match_type: "any" | "all" | "exact";
+  reply_text: string;
+  is_active: boolean;
+  priority: number;
+  times_triggered: number;
+  created_at: string;
 }
 
 interface CloudMedia {
@@ -502,6 +522,7 @@ export default function AutomationPage() {
                         showToast("Config deleted.");
                       }}
                       onGoToMedia={() => setTab("media")}
+                      onRulesChanged={loadAll}
                     />
                   ))}
                 </div>
@@ -761,7 +782,7 @@ function Toggle({
 
 function ConfigCard({
   cfg, expanded, saving, triggering, unusedMediaCount,
-  onToggle, onEnableToggle, onTrigger, onUpdate, onDelete, onGoToMedia,
+  onToggle, onEnableToggle, onTrigger, onUpdate, onDelete, onGoToMedia, onRulesChanged,
 }: {
   cfg: AutoPostConfig;
   expanded: boolean;
@@ -774,27 +795,27 @@ function ConfigCard({
   onUpdate: (field: string, value: unknown) => void;
   onDelete: () => void;
   onGoToMedia: () => void;
+  onRulesChanged: () => void;
 }) {
-  const [local, setLocal] = useState({
-    post_time: cfg.post_time,
-    niche_keywords: cfg.niche_keywords,
-    custom_caption_prompt: cfg.custom_caption_prompt,
-    spam_deletion_enabled: cfg.spam_deletion_enabled,
-    auto_reply_enabled: cfg.auto_reply_enabled,
-    moderation_prompt: cfg.moderation_prompt,
+  const snapshot = (c: AutoPostConfig) => ({
+    post_time: c.post_time,
+    niche_keywords: c.niche_keywords,
+    custom_caption_prompt: c.custom_caption_prompt,
+    spam_deletion_enabled: c.spam_deletion_enabled,
+    auto_reply_enabled: c.auto_reply_enabled,
+    moderation_prompt: c.moderation_prompt,
+    reply_persona: c.reply_persona ?? "",
+    business_context: c.business_context ?? "",
+    reply_language: c.reply_language ?? "auto",
+    like_valid_comments: c.like_valid_comments ?? false,
+    reply_only_to_questions: c.reply_only_to_questions ?? false,
   });
+  const [local, setLocal] = useState(() => snapshot(cfg));
 
   // Sync when cfg changes (after save)
   useEffect(() => {
-    setLocal({
-      post_time: cfg.post_time,
-      niche_keywords: cfg.niche_keywords,
-      custom_caption_prompt: cfg.custom_caption_prompt,
-      spam_deletion_enabled: cfg.spam_deletion_enabled,
-      auto_reply_enabled: cfg.auto_reply_enabled,
-      moderation_prompt: cfg.moderation_prompt,
-    });
-  }, [cfg]);
+    setLocal(snapshot(cfg));
+  }, [cfg]);// eslint-disable-line react-hooks/exhaustive-deps
 
   const saveAll = () => onUpdate("__batch__", local);
 
@@ -942,6 +963,54 @@ function ConfigCard({
             </Fld>
           </Section>
 
+          {/* ── AI Auto-Reply ──────────────────────────────────────────── */}
+          <Section title="AI Auto-Reply" icon={<MessageSquare size={14} className="text-primary" />}>
+            <div className="grid grid-cols-2 gap-4">
+              <Fld label="Reply Language">
+                <select
+                  className="inp"
+                  value={local.reply_language}
+                  onChange={(e) => setLocal({ ...local, reply_language: e.target.value })}
+                >
+                  <option value="auto">Match commenter&apos;s language</option>
+                  <option value="en">English</option>
+                  <option value="bn">Bengali</option>
+                  <option value="hi">Hindi</option>
+                  <option value="ar">Arabic</option>
+                  <option value="es">Spanish</option>
+                </select>
+              </Fld>
+              <div className="flex flex-col justify-center gap-2 pt-4">
+                <Toggle
+                  label="Like valid comments 👍"
+                  value={local.like_valid_comments}
+                  onChange={(v) => setLocal({ ...local, like_valid_comments: v })}
+                />
+                <Toggle
+                  label="Only reply to questions"
+                  value={local.reply_only_to_questions}
+                  onChange={(v) => setLocal({ ...local, reply_only_to_questions: v })}
+                />
+              </div>
+            </div>
+            <Fld label="Reply Persona / Tone (optional)">
+              <input
+                className="inp"
+                placeholder="e.g. friendly and upbeat, thank the person, add one emoji"
+                value={local.reply_persona}
+                onChange={(e) => setLocal({ ...local, reply_persona: e.target.value })}
+              />
+            </Fld>
+            <Fld label="Business Info the AI can use to answer (optional)">
+              <textarea
+                className="inp min-h-[70px] resize-none"
+                placeholder={"Hours: 9am–9pm daily\nDelivery: 2–3 days, free over ৳1000\nLocation: Dhaka\nPrice list / FAQs…"}
+                value={local.business_context}
+                onChange={(e) => setLocal({ ...local, business_context: e.target.value })}
+              />
+            </Fld>
+          </Section>
+
           <button
             onClick={saveAll}
             disabled={saving}
@@ -950,6 +1019,178 @@ function ConfigCard({
             {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
             {saving ? "Saving…" : "Save Settings"}
           </button>
+
+          {/* ── Keyword Auto-Reply Rules ───────────────────────────────── */}
+          <ReplyRulesManager
+            configId={cfg.id}
+            rules={cfg.reply_rules || []}
+            totalReplies={cfg.total_replies_sent}
+            onChanged={onRulesChanged}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Reply Rules Manager ───────────────────────────────────────────────────────
+
+function ReplyRulesManager({
+  configId, rules, totalReplies, onChanged,
+}: {
+  configId: string;
+  rules: ReplyRule[];
+  totalReplies: number;
+  onChanged: () => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({
+    name: "", keywords: "", match_type: "any", reply_text: "",
+  });
+
+  const addRule = async () => {
+    if (!form.keywords.trim() || !form.reply_text.trim()) return;
+    setBusy(true);
+    try {
+      await automationApi.createRule({ ...form, config: configId, is_active: true });
+      setForm({ name: "", keywords: "", match_type: "any", reply_text: "" });
+      setAdding(false);
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleRule = async (r: ReplyRule) => {
+    await automationApi.updateRule(r.id, { is_active: !r.is_active });
+    onChanged();
+  };
+
+  const removeRule = async (r: ReplyRule) => {
+    if (!confirm("Delete this rule?")) return;
+    await automationApi.deleteRule(r.id);
+    onChanged();
+  };
+
+  return (
+    <div className="border border-border rounded-2xl bg-white p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <Zap size={14} className="text-primary" /> Keyword Auto-Reply Rules
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-muted-foreground">{totalReplies} replies sent</span>
+          <button
+            onClick={() => setAdding((a) => !a)}
+            className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80"
+          >
+            <Plus size={13} /> Add Rule
+          </button>
+        </div>
+      </div>
+
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        Instant canned replies for common keywords — checked <strong>before</strong> the AI.
+        First matching active rule wins (e.g. keyword <code>price</code> → your price reply).
+      </p>
+
+      {/* Add form */}
+      {adding && (
+        <div className="bg-muted/40 rounded-xl p-3 space-y-2.5">
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              className="inp text-xs"
+              placeholder="Rule name (optional)"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            <select
+              className="inp text-xs"
+              value={form.match_type}
+              onChange={(e) => setForm({ ...form, match_type: e.target.value })}
+            >
+              <option value="any">Match ANY keyword</option>
+              <option value="all">Match ALL keywords</option>
+              <option value="exact">Exact phrase</option>
+            </select>
+          </div>
+          <input
+            className="inp text-xs"
+            placeholder="Keywords, comma-separated: price, cost, how much"
+            value={form.keywords}
+            onChange={(e) => setForm({ ...form, keywords: e.target.value })}
+          />
+          <textarea
+            className="inp text-xs min-h-[56px] resize-none"
+            placeholder="Reply to send, e.g. Thanks for asking! Our prices start at ৳500. DM us for details 😊"
+            value={form.reply_text}
+            onChange={(e) => setForm({ ...form, reply_text: e.target.value })}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={addRule}
+              disabled={busy || !form.keywords.trim() || !form.reply_text.trim()}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 disabled:opacity-50"
+            >
+              {busy ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+              Save Rule
+            </button>
+            <button
+              onClick={() => setAdding(false)}
+              className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Rules list */}
+      {rules.length === 0 ? (
+        <p className="text-[11px] text-muted-foreground italic py-1">
+          No rules yet — every valid comment goes to the AI.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {rules.map((r) => (
+            <div
+              key={r.id}
+              className={`flex items-start gap-3 rounded-xl border px-3 py-2 ${
+                r.is_active ? "border-border bg-white" : "border-border bg-muted/30 opacity-60"
+              }`}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold">{r.name || "Rule"}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                    {r.match_type}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {r.times_triggered}× triggered
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                  <span className="font-mono">{r.keywords}</span> → {r.reply_text}
+                </p>
+              </div>
+              <button
+                onClick={() => toggleRule(r)}
+                title={r.is_active ? "Disable" : "Enable"}
+                className={`text-[10px] font-medium px-2 py-1 rounded-lg shrink-0 ${
+                  r.is_active ? "text-green-600 bg-green-50" : "text-muted-foreground bg-muted"
+                }`}
+              >
+                {r.is_active ? "Active" : "Off"}
+              </button>
+              <button
+                onClick={() => removeRule(r)}
+                className="text-destructive/60 hover:text-destructive p-1 shrink-0"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>

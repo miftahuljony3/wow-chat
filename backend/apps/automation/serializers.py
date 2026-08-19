@@ -1,5 +1,27 @@
 from rest_framework import serializers
-from .models import AutoPostConfig, CloudMediaManager, CommentModerationLog, DailyPostLog
+from .models import (
+    AutoPostConfig,
+    CloudMediaManager,
+    CommentModerationLog,
+    DailyPostLog,
+    CommentAutoReplyRule,
+)
+
+
+class CommentAutoReplyRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommentAutoReplyRule
+        fields = [
+            "id", "config", "name", "keywords", "match_type",
+            "reply_text", "is_active", "priority", "times_triggered", "created_at",
+        ]
+        read_only_fields = ["id", "times_triggered", "created_at"]
+
+    def validate_config(self, value):
+        request = self.context.get("request")
+        if request and value.workspace != request.user.workspace:
+            raise serializers.ValidationError("Config not in your workspace.")
+        return value
 
 
 class CloudMediaSerializer(serializers.ModelSerializer):
@@ -35,6 +57,7 @@ class CloudMediaSerializer(serializers.ModelSerializer):
 class AutoPostConfigSerializer(serializers.ModelSerializer):
     integration_display = serializers.SerializerMethodField(read_only=True)
     media_unused_count = serializers.SerializerMethodField(read_only=True)
+    reply_rules = CommentAutoReplyRuleSerializer(many=True, read_only=True)
 
     class Meta:
         model = AutoPostConfig
@@ -43,9 +66,16 @@ class AutoPostConfigSerializer(serializers.ModelSerializer):
             "is_auto_post_enabled", "post_time", "niche_keywords",
             "custom_caption_prompt", "last_post_date", "total_posts_published",
             "spam_deletion_enabled", "auto_reply_enabled", "moderation_prompt",
+            # Auto-reply behaviour
+            "reply_persona", "business_context", "reply_language",
+            "like_valid_comments", "reply_only_to_questions", "total_replies_sent",
+            "reply_rules",
             "media_unused_count", "created_at", "updated_at",
         ]
-        read_only_fields = ["id", "last_post_date", "total_posts_published", "created_at", "updated_at"]
+        read_only_fields = [
+            "id", "last_post_date", "total_posts_published",
+            "total_replies_sent", "created_at", "updated_at",
+        ]
 
     def get_integration_display(self, obj):
         return obj.integration.display_name or obj.integration.page_id

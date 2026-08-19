@@ -120,15 +120,39 @@ def _caption_fallback(niche: str, media_type: str, custom_prompt: str = "") -> s
 
 # ── Comment moderation ────────────────────────────────────────────────────────
 
-def moderate_comment(comment_text: str, niche: str = "", extra_rules: str = "") -> dict:
+_LANG_LABELS = {
+    "auto": "the same language the comment is written in",
+    "en": "English", "bn": "Bengali", "hi": "Hindi",
+    "ar": "Arabic", "es": "Spanish",
+}
+
+
+def moderate_comment(
+    comment_text: str,
+    niche: str = "",
+    extra_rules: str = "",
+    *,
+    persona: str = "",
+    business_context: str = "",
+    reply_language: str = "auto",
+    only_questions: bool = False,
+) -> dict:
     """
     Classify a Facebook comment and optionally draft a reply.
 
+    Args:
+        persona:           tone/personality for the reply.
+        business_context:  facts the AI may use to answer (hours, price, etc.).
+        reply_language:    "auto" | "en" | "bn" | "hi" | "ar" | "es".
+        only_questions:    if True, only produce a reply when the comment is a
+                           question / clearly expects a response.
+
     Returns:
         {
-            "verdict": "spam" | "abusive" | "valid",
-            "reply": "reply text or empty string",
-            "reason": "brief explanation"
+          "verdict": "spam" | "abusive" | "valid",
+          "reply":   "reply text or empty string",
+          "reason":  "brief explanation",
+          "is_question": bool,
         }
     """
     try:
@@ -139,15 +163,30 @@ def moderate_comment(comment_text: str, niche: str = "", extra_rules: str = "") 
         llm = ChatGroq(
             api_key=settings.GROQ_API_KEY,
             model_name=settings.GROQ_MODEL,
-            temperature=0.1,
-            max_tokens=400,
+            temperature=0.3,
+            max_tokens=500,
         )
 
         rules = extra_rules or "Standard community guidelines apply."
         niche_ctx = f"The page is about: {niche}. " if niche else ""
+        persona_line = (
+            f"Reply persona/tone: {persona}. " if persona
+            else "Reply warmly and human-like as the page owner. "
+        )
+        biz_line = (
+            f"\nBusiness info you may use to answer (only if relevant, never invent facts):\n{business_context}\n"
+            if business_context else ""
+        )
+        lang = _LANG_LABELS.get(reply_language, _LANG_LABELS["auto"])
+        q_line = (
+            "Only write a reply if the comment is a question or clearly expects a response; "
+            "otherwise leave reply empty. "
+            if only_questions else ""
+        )
 
-        system = f"""You are a strict but fair Facebook page comment moderator.
+        system = f"""You are a strict but fair Facebook page comment moderator AND the page's reply writer.
 {niche_ctx}Page rules: {rules}
+{persona_line}{q_line}Write any reply in {lang}.{biz_line}
 
 Classify the comment into one of three categories:
 - "spam": promotional content, unrelated links, fake giveaways, follow-for-follow
@@ -155,9 +194,9 @@ Classify the comment into one of three categories:
 - "valid": genuine question, opinion, compliment, or on-topic discussion
 
 Respond ONLY with valid JSON in this exact format:
-{{"verdict": "<spam|abusive|valid>", "reason": "<one sentence>", "reply": "<friendly reply if valid, else empty string>"}}
+{{"verdict": "<spam|abusive|valid>", "reason": "<one sentence>", "is_question": <true|false>, "reply": "<reply text if valid, else empty string>"}}
 
-If valid, write a warm, human-like reply (1-2 sentences) as the page owner."""
+If valid, write a concise reply (1-2 sentences). Use the business info to answer questions accurately when relevant."""
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", system),
@@ -167,18 +206,23 @@ If valid, write a warm, human-like reply (1-2 sentences) as the page owner."""
         chain = prompt | llm | JsonOutputParser()
         result = chain.invoke({"comment": comment_text})
 
-        # Validate shape
         verdict = result.get("verdict", "valid")
         if verdict not in ("spam", "abusive", "valid"):
             verdict = "valid"
 
+        is_question = bool(result.get("is_question", False))
+        reply = result.get("reply", "") if verdict == "valid" else ""
+        if verdict == "valid" and only_questions and not is_question:
+            reply = ""
+
         return {
             "verdict": verdict,
             "reason": result.get("reason", ""),
-            "reply": result.get("reply", "") if verdict == "valid" else "",
+            "reply": reply,
+            "is_question": is_question,
         }
 
     except Exception as exc:
         logger.exception("Comment moderation failed: %s", exc)
         # Safe default: don't delete, don't reply
-        return {"verdict": "valid", "reason": "moderation error", "reply": ""}
+        return {"verdict": "valid", "reason": "moderation error", "reply": "", "is_question": False}

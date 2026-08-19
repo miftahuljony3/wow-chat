@@ -94,6 +94,35 @@ class AutoPostConfig(models.Model):
         help_text="Additional context for the AI moderator (e.g. page rules, topics to ignore).",
     )
 
+    # ── Auto-reply behaviour ──────────────────────────────────────────────────
+    class ReplyLanguage(models.TextChoices):
+        AUTO = "auto", "Match commenter's language"
+        ENGLISH = "en", "English"
+        BENGALI = "bn", "Bengali"
+        HINDI = "hi", "Hindi"
+        ARABIC = "ar", "Arabic"
+        SPANISH = "es", "Spanish"
+
+    reply_persona = models.TextField(
+        blank=True,
+        help_text="Tone / personality for AI replies (e.g. 'friendly and upbeat, uses the customer's name, adds one emoji').",
+    )
+    business_context = models.TextField(
+        blank=True,
+        help_text="Facts the AI can use when replying — hours, prices, location, products, FAQs.",
+    )
+    reply_language = models.CharField(
+        max_length=8, choices=ReplyLanguage.choices, default=ReplyLanguage.AUTO,
+    )
+    like_valid_comments = models.BooleanField(
+        default=False, help_text="Also 'like' comments classified as valid."
+    )
+    reply_only_to_questions = models.BooleanField(
+        default=False,
+        help_text="Only auto-reply when the comment is a question or clearly expects a response.",
+    )
+    total_replies_sent = models.PositiveIntegerField(default=0)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -103,6 +132,61 @@ class AutoPostConfig(models.Model):
 
     def __str__(self):
         return f"{self.workspace} – {self.integration.display_name or self.integration.page_id}"
+
+
+class CommentAutoReplyRule(models.Model):
+    """
+    Keyword-triggered canned reply. Checked BEFORE the AI on valid comments —
+    the first active matching rule wins and replies instantly (deterministic,
+    no LLM call). Useful for FAQs like price, delivery, location, booking.
+    """
+
+    class MatchType(models.TextChoices):
+        ANY = "any", "Match ANY keyword"
+        ALL = "all", "Match ALL keywords"
+        EXACT = "exact", "Exact phrase"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    config = models.ForeignKey(
+        AutoPostConfig, on_delete=models.CASCADE, related_name="reply_rules"
+    )
+    name = models.CharField(max_length=100, blank=True)
+    keywords = models.CharField(
+        max_length=500,
+        help_text="Comma-separated trigger keywords (e.g. 'price, cost, how much').",
+    )
+    match_type = models.CharField(
+        max_length=8, choices=MatchType.choices, default=MatchType.ANY
+    )
+    reply_text = models.TextField(help_text="The canned reply to post.")
+    is_active = models.BooleanField(default=True)
+    priority = models.PositiveIntegerField(
+        default=0, help_text="Higher priority rules are checked first."
+    )
+    times_triggered = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-priority", "created_at"]
+        verbose_name = "Comment Auto-Reply Rule"
+        verbose_name_plural = "Comment Auto-Reply Rules"
+
+    def __str__(self):
+        return f"{self.name or self.keywords[:30]} → {self.reply_text[:30]}"
+
+    def matches(self, text: str) -> bool:
+        """True if `text` triggers this rule per its match_type."""
+        if not text:
+            return False
+        haystack = text.lower()
+        kws = [k.strip().lower() for k in self.keywords.split(",") if k.strip()]
+        if not kws:
+            return False
+        if self.match_type == self.MatchType.EXACT:
+            return any(k == haystack.strip() for k in kws)
+        if self.match_type == self.MatchType.ALL:
+            return all(k in haystack for k in kws)
+        return any(k in haystack for k in kws)
 
 
 class CommentModerationLog(models.Model):

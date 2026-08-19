@@ -205,13 +205,21 @@ export default function SettingsPage() {
     setSaving(true);
     setMsg(null);
     try {
-      await channelsApi.create({
+      const res = await channelsApi.create({
         ...form,
         ai_handoff_keywords: form.ai_handoff_keywords,
       });
       await loadData();
       setForm(makeDefaultForm(selectedPlatform));
-      setMsg({ text: "Integration saved successfully.", ok: true });
+      // For Messenger/Instagram, surface the Page-token resolution result.
+      const tr = res?.data?.token_resolution as
+        | { resolved: boolean; note: string }
+        | undefined;
+      if (tr?.note) {
+        setMsg({ text: `Integration saved. ${tr.note}`, ok: tr.resolved });
+      } else {
+        setMsg({ text: "Integration saved successfully.", ok: true });
+      }
     } catch (e: unknown) {
       const err = e as { response?: { status?: number; data?: { detail?: string; non_field_errors?: string[] } } };
       if (err?.response?.status === 401) {

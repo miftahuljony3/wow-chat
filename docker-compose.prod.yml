@@ -51,6 +51,16 @@ services:
     restart: unless-stopped
     command: daphne -b 0.0.0.0 -p 8000 core.asgi:application
     env_file: ./backend/.env
+    # This VPS has broken routing to Facebook's 157.240.0.0/16 range (which DNS
+    # normally returns) but reachable routes to 31.13.x / 163.70.x edges. Pin
+    # graph.facebook.com to reachable edge IPs so FB posting, WhatsApp,
+    # Messenger and Instagram (all use graph.facebook.com) can connect. Multiple
+    # IPs give glibc fallbacks; net_retry.py retries transient blips.
+    extra_hosts:
+      - "graph.facebook.com:31.13.71.36"
+      - "graph.facebook.com:163.70.128.14"
+      - "graph.facebook.com:31.13.64.35"
+      - "graph.facebook.com:163.70.144.14"
     volumes:
       - media_data:/app/media
       - static_data:/app/staticfiles
@@ -68,6 +78,13 @@ services:
     restart: unless-stopped
     command: celery -A core worker -l info -c 4 -Q default,webhooks,ai_responses
     env_file: ./backend/.env
+    # See backend service — pin Facebook to reachable edge IPs (broken route to
+    # 157.240.x). The worker runs auto-posts + AI replies, so it needs this too.
+    extra_hosts:
+      - "graph.facebook.com:31.13.71.36"
+      - "graph.facebook.com:163.70.128.14"
+      - "graph.facebook.com:31.13.64.35"
+      - "graph.facebook.com:163.70.144.14"
     volumes:
       - media_data:/app/media
     depends_on:

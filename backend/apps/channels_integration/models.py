@@ -12,6 +12,10 @@ class ChannelIntegration(models.Model):
     class Platform(models.TextChoices):
         WHATSAPP = "whatsapp", "WhatsApp Cloud API"
         MESSENGER = "messenger", "Facebook Messenger"
+        INSTAGRAM = "instagram", "Instagram"
+        TELEGRAM = "telegram", "Telegram"
+        DISCORD = "discord", "Discord"
+        WEB_CHAT = "web_chat", "Web Chat Widget"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workspace = models.ForeignKey(
@@ -28,9 +32,25 @@ class ChannelIntegration(models.Model):
     verify_token = models.CharField(max_length=255, blank=True)
     waba_id = models.CharField("WhatsApp Business Account ID", max_length=50, blank=True)
 
-    # Facebook Messenger fields
+    # Facebook Messenger / Instagram fields
     page_id = models.CharField(max_length=50, blank=True)
     page_access_token = models.TextField(blank=True)
+    instagram_business_account_id = models.CharField(max_length=50, blank=True)
+
+    # Telegram fields
+    telegram_bot_token = models.TextField(blank=True)
+    telegram_bot_username = models.CharField(max_length=100, blank=True)
+
+    # Discord fields
+    discord_bot_token = models.TextField(blank=True)
+    discord_guild_id = models.CharField(max_length=50, blank=True)
+    discord_channel_id = models.CharField(max_length=50, blank=True)
+
+    # Web Chat Widget
+    web_chat_widget_key = models.CharField(max_length=64, blank=True)
+    web_chat_allowed_origins = models.TextField(
+        blank=True, help_text="Newline-separated list of allowed origins"
+    )
 
     # AI configuration
     ai_enabled = models.BooleanField(default=True)

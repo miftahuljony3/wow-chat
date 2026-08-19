@@ -63,6 +63,9 @@ export const aiApi = {
     api.post(`/api/v1/ai/conversations/${conversationId}/bot/`, { bot_active: botActive }),
   assignAgent: (conversationId: string, agentId: string | null) =>
     api.post(`/api/v1/ai/conversations/${conversationId}/assign/`, { agent_id: agentId }),
+  webhookInfo: () => api.get("/api/v1/ai/webhook-info/"),
+  sendTest: (data: { integration_id: string; to: string; message: string }) =>
+    api.post("/api/v1/ai/send-test/", data),
 };
 
 export const channelsApi = {

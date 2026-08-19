@@ -76,3 +76,36 @@ export const channelsApi = {
     api.patch(`/api/v1/channels/integrations/${id}/`, data),
   delete: (id: string) => api.delete(`/api/v1/channels/integrations/${id}/`),
 };
+
+export const automationApi = {
+  // Auto-post configs
+  listConfigs: () => api.get("/api/v1/automation/configs/"),
+  createConfig: (data: Record<string, unknown>) =>
+    api.post("/api/v1/automation/configs/", data),
+  updateConfig: (id: string, data: Record<string, unknown>) =>
+    api.patch(`/api/v1/automation/configs/${id}/`, data),
+  deleteConfig: (id: string) =>
+    api.delete(`/api/v1/automation/configs/${id}/`),
+  triggerNow: (id: string) =>
+    api.post(`/api/v1/automation/configs/${id}/trigger_now/`),
+  postLogs: (id: string) =>
+    api.get(`/api/v1/automation/configs/${id}/post_logs/`),
+  moderationLogs: (id: string) =>
+    api.get(`/api/v1/automation/configs/${id}/moderation_logs/`),
+  // Media library
+  listMedia: (params?: Record<string, string>) =>
+    api.get("/api/v1/automation/media/", { params }),
+  uploadMedia: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api.post("/api/v1/automation/media/", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+  deleteMedia: (id: string) =>
+    api.delete(`/api/v1/automation/media/${id}/`),
+  markUnused: (id: string) =>
+    api.post(`/api/v1/automation/media/${id}/mark_unused/`),
+  bulkMarkUnused: () =>
+    api.post("/api/v1/automation/media/bulk_mark_unused/"),
+};

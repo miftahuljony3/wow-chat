@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquare, Settings, LogOut, Zap } from "lucide-react";
+import { MessageSquare, Settings, LogOut, Zap, CalendarClock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/hooks/useStore";
 import { useRouter } from "next/navigation";
 
 const nav = [
   { href: "/dashboard", icon: MessageSquare, label: "Inbox" },
+  { href: "/dashboard/automation", icon: CalendarClock, label: "Automation" },
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -40,7 +41,7 @@ export default function Sidebar() {
             title={label}
             className={cn(
               "flex items-center justify-center w-12 h-12 rounded-xl transition-colors",
-              pathname === href
+              pathname === href || (href !== "/dashboard" && pathname.startsWith(href))
                 ? "bg-primary text-white"
                 : "text-white/50 hover:bg-white/10 hover:text-white"
             )}

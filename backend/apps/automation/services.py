@@ -12,6 +12,39 @@ logger = logging.getLogger(__name__)
 GRAPH_BASE = "https://graph.facebook.com/v19.0"
 
 
+class GraphAPIError(Exception):
+    """Raised on a Facebook Graph API error response, carrying Meta's own
+    error message + code so it shows up legibly in DailyPostLog / the UI."""
+
+    def __init__(self, message: str, code=None, subcode=None, status: int = 0):
+        self.code = code
+        self.subcode = subcode
+        self.status = status
+        super().__init__(message)
+
+    @classmethod
+    def from_response(cls, resp) -> "GraphAPIError":
+        try:
+            err = resp.json().get("error", {})
+            msg = err.get("message") or resp.text
+            hint = ""
+            # Missing publish permission — Meta returns a misleading legacy string
+            if err.get("code") == 200:
+                hint = (
+                    " — the Page access token is missing the 'pages_manage_posts' "
+                    "permission, or it is a User token rather than a Page token."
+                )
+            return cls(
+                f"Facebook: {msg}{hint}",
+                code=err.get("code"),
+                subcode=err.get("error_subcode"),
+                status=resp.status_code,
+            )
+        except Exception:
+            return cls(f"Facebook HTTP {resp.status_code}: {resp.text[:300]}",
+                       status=resp.status_code)
+
+
 class FacebookPageService:
     """
     Wraps the Meta Graph API for page-level actions:
@@ -123,5 +156,5 @@ class FacebookPageService:
             logger.error(
                 "Graph API POST %s failed: %s %s", path, resp.status_code, resp.text
             )
-            resp.raise_for_status()
+            raise GraphAPIError.from_response(resp)
         return resp.json()

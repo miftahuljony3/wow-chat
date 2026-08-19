@@ -75,7 +75,7 @@ def execute_auto_post(self, config_id: str):
     """
     from apps.automation.models import AutoPostConfig, CloudMediaManager, DailyPostLog
     from apps.automation.agents import generate_caption
-    from apps.automation.services import FacebookPageService
+    from apps.automation.services import FacebookPageService, GraphAPIError
 
     try:
         config = AutoPostConfig.objects.select_related(
@@ -143,6 +143,18 @@ def execute_auto_post(self, config_id: str):
         fb_post_id = result.get("id", result.get("post_id", ""))
         logger.info("Published post %s for config %s", fb_post_id, config_id)
 
+    except GraphAPIError as exc:
+        # Facebook returned an API error (bad/insufficient token, permission,
+        # page mismatch). Not transient — don't retry, just log it legibly.
+        logger.error("Graph API rejected post for config %s: %s", config_id, exc)
+        DailyPostLog.objects.create(
+            config=config,
+            media=media,
+            status=DailyPostLog.Status.FAILED,
+            caption_used=caption,
+            error_message=str(exc),
+        )
+        return
     except Exception as exc:
         logger.exception("Failed to publish post for config %s: %s", config_id, exc)
         DailyPostLog.objects.create(

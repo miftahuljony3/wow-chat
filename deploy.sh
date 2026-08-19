@@ -39,6 +39,9 @@ $COMPOSE exec -T backend python manage.py migrate --noinput
 echo ">>> Collecting static files..."
 $COMPOSE exec -T backend python manage.py collectstatic --noinput --clear 2>/dev/null || true
 
+echo ">>> Reloading nginx to pick up fresh container IPs..."
+docker restart wowchat_nginx
+
 echo ">>> Container status:"
 $COMPOSE ps
 
